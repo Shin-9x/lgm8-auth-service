@@ -7,18 +7,18 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config struttura che rappresenta la configurazione
+// It represents the configuration
 type Config struct {
 	Server   ServerConfig
 	Keycloak KeycloakConfig
 }
 
-// ServerConfig configura il server API
+// It represents the property port for the API server
 type ServerConfig struct {
-	Port int
+	Port int `mapstructure:"port"`
 }
 
-// KeycloakConfig configura Keycloak
+// It represents keycloak configuration
 type KeycloakConfig struct {
 	URL           string `mapstructure:"url"`
 	Realm         string `mapstructure:"realm"`
@@ -28,24 +28,24 @@ type KeycloakConfig struct {
 	AdminPassword string `mapstructure:"admin_password"`
 }
 
-// LoadConfig carica la configurazione da file e variabili d'ambiente
+// It loads configuration from files and environment variables
 func LoadConfig() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath("config/") // Percorso del file
-	viper.AutomaticEnv()           // Legge anche da ENV
+	viper.AddConfigPath("../config/") // config.yaml file path
+	viper.AutomaticEnv()              // Also reads from ENV
 
-	// Leggiamo il file
+	// Read config file
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("errore nel leggere il file di configurazione: %w", err)
+		return nil, fmt.Errorf("error reading the configuration file: %w", err)
 	}
 
-	// Parse della configurazione
+	// Parse config file
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("errore nel parsing della configurazione: %w", err)
+		return nil, fmt.Errorf("error parsing the configuration: %w", err)
 	}
 
-	log.Println("Configurazione caricata correttamente")
+	log.Println("Configuration loaded successfully")
 	return &config, nil
 }
