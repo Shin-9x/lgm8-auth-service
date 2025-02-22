@@ -8,21 +8,24 @@ import (
 
 func SetupRouter(userHandler *handlers.UserHandler) *gin.Engine {
 	r := gin.Default()
-
 	r.Use(middleware.Logger())
 
 	api := r.Group("/api/v1")
 	{
-		// User management
+		// Public routes (NO AUTH)
 		api.POST("/users", userHandler.CreateUser)
-		api.DELETE("/users/:id", userHandler.DeleteUser)
-		api.GET("/users/:id", userHandler.GetUser)
-		api.PUT("/users", userHandler.UpdateUser)
-
-		// Authentication
 		api.POST("/login", userHandler.Login)
 		api.POST("/refresh", userHandler.RefreshToken)
-		api.POST("/logout", userHandler.Logout)
+
+		// Protected routes (WITH AUTH)
+		protected := api.Group("/")
+		protected.Use(middleware.Authenticate(userHandler.UserService.Kc))
+		{
+			protected.POST("/logout", userHandler.Logout)
+			protected.DELETE("/users/:id", userHandler.DeleteUser)
+			protected.GET("/users/:id", userHandler.GetUser)
+			protected.PUT("/users", userHandler.UpdateUser)
+		}
 	}
 
 	return r

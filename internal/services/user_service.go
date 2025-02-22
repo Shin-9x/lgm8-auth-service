@@ -39,10 +39,10 @@ func (s *UserService) GetUser(userID string) (*gocloak.User, error) {
 	return user, nil
 }
 
-func (s *UserService) UpdateUser(user gocloak.User) error {
-	err := s.Kc.Client.UpdateUser(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, user)
+func (s *UserService) UpdateUserPassword(userID string, credential gocloak.CredentialRepresentation) error {
+	err := s.Kc.Client.SetPassword(s.Kc.Ctx, s.Kc.Token.AccessToken, userID, s.Kc.Cfg.Realm, *credential.Value, false)
 	if err != nil {
-		return fmt.Errorf("Error during user update: [%w]", err)
+		return fmt.Errorf("error updating password for user [%s]: %w", userID, err)
 	}
 	return nil
 }

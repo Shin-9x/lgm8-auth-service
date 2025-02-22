@@ -13,15 +13,44 @@ type UserHandler struct {
 	UserService *services.UserService
 }
 
+type UserRequest struct {
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+// PasswordUpdateRequest represents the payload for updating a user's password
+type PasswordUpdateRequest struct {
+	ID          string `json:"id" binding:"required"`                // User ID (required)
+	NewPassword string `json:"newPassword" binding:"required,min=8"` // New password (required, min 8 chars)
+}
+
+// CreateUser handles the registration of a new user
 func (uh *UserHandler) CreateUser(c *gin.Context) {
-	var user gocloak.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var req UserRequest
+
+	// Binding with automatic validation
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user.Enabled = gocloak.BoolP(true)
+	// Create user structure for Keycloak
+	user := gocloak.User{
+		Username:      gocloak.StringP(req.Username),
+		Email:         gocloak.StringP(req.Email),
+		Enabled:       gocloak.BoolP(true), // The user is enabled by default
+		EmailVerified: gocloak.BoolP(false),
+		Credentials: &[]gocloak.CredentialRepresentation{
+			{
+				Type:      gocloak.StringP("password"),
+				Value:     gocloak.StringP(req.Password),
+				Temporary: gocloak.BoolP(false), // If `true`, the user will have to change the password at first login
+			},
+		},
+	}
 
+	// Create the user on Keycloak
 	userID, err := uh.UserService.CreateUser(user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -29,13 +58,10 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	log.Printf("User created with ID: [%s]", userID)
-	c.JSON(
-		http.StatusCreated,
-		gin.H{
-			"message": "User Created",
-			"user_id": userID,
-		},
-	)
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "User Created",
+		"user_id": userID,
+	})
 }
 
 func (uh *UserHandler) DeleteUser(c *gin.Context) {
@@ -61,20 +87,32 @@ func (uh *UserHandler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-func (uh *UserHandler) UpdateUser(c *gin.Context) {
-	var user gocloak.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+// UpdateUserPassword handles user password update
+func (uh *UserHandler) UpdateUserPassword(c *gin.Context) {
+	var req PasswordUpdateRequest
+
+	// Validate request payload
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := uh.UserService.UpdateUser(user)
+	// Create password credential object
+	credential := gocloak.CredentialRepresentation{
+		Type:      gocloak.StringP("password"),
+		Value:     gocloak.StringP(req.NewPassword),
+		Temporary: gocloak.BoolP(false), // Permanent password change
+	}
+
+	// Call service to update the password
+	err := uh.UserService.UpdateUserPassword(req.ID, credential)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User updated"})
+	log.Printf("Password updated for user ID [%s]", req.ID)
+	c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
 }
 
 func (uh *UserHandler) Login(c *gin.Context) {
@@ -134,7 +172,7 @@ func (uh *UserHandler) Logout(c *gin.Context) {
 
 	err := uh.UserService.Logout(req.UserID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Logout failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
