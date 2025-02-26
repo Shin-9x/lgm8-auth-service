@@ -32,8 +32,8 @@ type KeycloakConfig struct {
 func LoadConfig() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath("../config/") // config.yaml file path
-	viper.AutomaticEnv()              // Also reads from ENV
+	viper.AddConfigPath("./config/") // config.yaml file path
+	viper.AutomaticEnv()             // Also reads from ENV
 
 	// Read config file
 	if err := viper.ReadInConfig(); err != nil {

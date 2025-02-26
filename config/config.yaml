@@ -2,9 +2,9 @@ server:
   port: 8081
 
 keycloak:
-  url: "http://localhost:8080"
+  url: "http://keycloak:8080"
   realm: "lgm8"
   client_id: "lgm8-auth-service"
-  client_secret: "test"
+  client_secret: "WIORS6x7eQueQVKF0h5rJSz1tAo0NKIQ"
   admin_user: "admin"
   admin_password: "admin"
