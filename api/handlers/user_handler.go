@@ -21,7 +21,6 @@ type UserRequest struct {
 
 // PasswordUpdateRequest represents the payload for updating a user's password
 type PasswordUpdateRequest struct {
-	ID          string `json:"id" binding:"required"`                // User ID (required)
 	NewPassword string `json:"newPassword" binding:"required,min=8"` // New password (required, min 8 chars)
 }
 
@@ -104,14 +103,16 @@ func (uh *UserHandler) UpdateUserPassword(c *gin.Context) {
 		Temporary: gocloak.BoolP(false), // Permanent password change
 	}
 
+	userID := c.Param("id")
+
 	// Call service to update the password
-	err := uh.UserService.UpdateUserPassword(req.ID, credential)
+	err := uh.UserService.UpdateUserPassword(userID, credential)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	log.Printf("Password updated for user ID [%s]", req.ID)
+	log.Printf("Password updated for user ID [%s]", userID)
 	c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
 }
 
