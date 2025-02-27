@@ -1,0 +1,297 @@
+definitions:
+  handlers.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handlers.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  handlers.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  handlers.LogoutRequest:
+    properties:
+      user_id:
+        type: string
+    type: object
+  handlers.LogoutResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  handlers.PasswordUpdateRequest:
+    properties:
+      newPassword:
+        minLength: 8
+        type: string
+    required:
+    - newPassword
+    type: object
+  handlers.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  handlers.UserCreatedResponse:
+    properties:
+      message:
+        type: string
+      user_id:
+        type: string
+    type: object
+  handlers.UserDeletedResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  handlers.UserGetResponse:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+    type: object
+  handlers.UserPasswordUpdatedResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  handlers.UserPostRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+info:
+  contact: {}
+paths:
+  /v1/session/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns JWT tokens for session management.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT tokens
+          schema:
+            $ref: '#/definitions/handlers.LoginResponse'
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: User login
+      tags:
+      - auth
+  /v1/session/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logs out a user from all active sessions by invalidating their
+        session in Keycloak.
+      parameters:
+      - description: User ID to logout
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User logged out successfully
+          schema:
+            $ref: '#/definitions/handlers.LogoutResponse'
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Logout user
+      tags:
+      - auth
+  /v1/token/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generates a new access token and refresh token using a valid refresh
+        token.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New JWT tokens
+          schema:
+            $ref: '#/definitions/handlers.LoginResponse'
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Invalid refresh token
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - auth
+  /v1/users:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user in Keycloak with the provided credentials.
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UserPostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User successfully created
+          schema:
+            $ref: '#/definitions/handlers.UserCreatedResponse'
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Create a new user
+      tags:
+      - users
+  /v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a user from the system based on their ID.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            $ref: '#/definitions/handlers.UserDeletedResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Delete user
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Retrieves basic information about a user.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User details
+          schema:
+            $ref: '#/definitions/handlers.UserGetResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get user details
+      tags:
+      - users
+  /v1/users/{id}/password:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the password of a specific user identified by ID.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New password data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.PasswordUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password updated successfully
+          schema:
+            $ref: '#/definitions/handlers.UserPasswordUpdatedResponse'
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Update user password
+      tags:
+      - users
+swagger: "2.0"
