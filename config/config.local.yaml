@@ -5,6 +5,6 @@ keycloak:
   url: "http://localhost:8080"
   realm: "lgm8"
   client_id: "lgm8-auth-service"
-  client_secret: "PqAPBND8Rdste8kCjWExUEengit7JCC9"
+  client_secret: "test"
   admin_user: "admin"
   admin_password: "admin"
