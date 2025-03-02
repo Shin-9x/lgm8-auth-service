@@ -1,0 +1,21 @@
+- [ ] Add environment-dependent configuration:
+      - Implement different configurations for development, testing, and production environments.
+      - Ensure the application loads the correct configuration based on the environment.
+
+- [ ] Add encryption/decryption for sensitive data:
+      - Implement encryption for storing sensitive data in the database.
+      - BE -> Secret Key
+      - FE -> Public Key 
+
+- [ ] Add social media login/subscription functionality (Facebook/Instagram/Google):
+      - Integrate OAuth authentication for Facebook, Instagram, and Google.
+      - Implement subscription handling for each social media platform.
+
+- [ ] Add HTTPS support:
+      - Configure the server to use HTTPS for secure communication.
+      - Obtain and install SSL/TLS certificates.
+      - Update the application to use HTTPS endpoints.
+
+- [ ] Expose API to enable other microservices to download the JWT parsing key from Keycloak:
+      - Create an API endpoint for retrieving the JWT parsing key from Keycloak.
+      - Secure the endpoint to ensure only authorized microservices can access it.
