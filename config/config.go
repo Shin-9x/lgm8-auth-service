@@ -30,7 +30,7 @@ type KeycloakConfig struct {
 
 // It loads configuration from files and environment variables
 func LoadConfig() (*Config, error) {
-	viper.SetConfigName("config")
+	viper.SetConfigName(fmt.Sprintf("config.%s", getEnv()))
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./config/") // config.yaml file path
 	viper.AutomaticEnv()             // Also reads from ENV
@@ -48,4 +48,20 @@ func LoadConfig() (*Config, error) {
 
 	log.Println("Configuration loaded successfully")
 	return &config, nil
+}
+
+func getEnv() string {
+	env_str := "APP_ENV"
+
+	viper.BindEnv(env_str)
+	env := viper.GetString(env_str) // Read the APP_ENV environment variable
+
+	if env == "" {
+		log.Printf("APP_ENV empty. Using default.")
+		env = "dev" // Default to dev if not set
+	}
+
+	log.Printf("Using ENV [%s]", env)
+
+	return env
 }

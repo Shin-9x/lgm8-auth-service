@@ -5,6 +5,6 @@ keycloak:
   url: "http://nginx/auth"
   realm: "lgm8"
   client_id: "lgm8-auth-service"
-  client_secret: "WIORS6x7eQueQVKF0h5rJSz1tAo0NKIQ"
+  client_secret: "PqAPBND8Rdste8kCjWExUEengit7JCC9"
   admin_user: "admin"
   admin_password: "admin"

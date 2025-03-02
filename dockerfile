@@ -22,8 +22,8 @@ FROM alpine:latest
 # Copy the built binary from the builder stage
 COPY --from=builder /app/lgm8-auth-service /app/lgm8-auth-service
 
-# Copy the config file from the microservice directory
-COPY ../microservices/lgm8-auth-service/config/config.yaml /app/config/config.yaml
+# Copy all config files
+COPY ../microservices/lgm8-auth-service/config/ /app/config/
 
 # Set the working directory
 WORKDIR /app

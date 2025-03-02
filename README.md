@@ -19,6 +19,25 @@ The `lgm8-auth-service` provides a RESTful API for user registration, authentica
 * **Swagger Documentation:** API documentation is generated using `gin-swagger`, providing interactive API exploration.
 
 
+## Running the Microservice locally
+To run the microservice locally, set the `APP_ENV` environment variable before executing the application:
+
+### Windows
+#### PowerShell
+```powershell
+$env:APP_ENV="local"; go run .\cmd\main.go
+```
+#### CMD
+```bash
+set APP_ENV=local && go run .\cmd\main.go
+```
+
+### Linux & MacOS
+```shell
+APP_ENV=local go run ./cmd/main.go
+```
+
+
 ## API Endpoints
 
 ### Public Endpoints (No Authentication Required)

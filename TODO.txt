@@ -1,4 +1,4 @@
-- [ ] Add environment-dependent configuration:
+- [X] Add environment-dependent configuration:
       - Implement different configurations for development, testing, and production environments.
       - Ensure the application loads the correct configuration based on the environment.
 
