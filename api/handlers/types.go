@@ -55,3 +55,9 @@ type LogoutRequest struct {
 type LogoutResponse struct {
 	Message string `json:"message"`
 }
+
+type JWKSResponse struct {
+	Keys JWK `json:"keys"`
+}
+
+type JWK []map[string]any

@@ -188,7 +188,7 @@ func (uh *UserHandler) Login(c *gin.Context) {
 //
 // @Summary Refresh access token
 // @Description Generates a new access token and refresh token using a valid refresh token.
-// @Tags auth
+// @Tags Token
 // @Accept json
 // @Produce json
 // @Param request body RefreshTokenRequest true "Refresh token"
@@ -249,17 +249,18 @@ func (uh *UserHandler) Logout(c *gin.Context) {
 //
 // @Summary Retrieves JWKS for token verification
 // @Description Fetches the public keys from Keycloak's JWKS endpoint, used to verify the signatures of JWTs issued by Keycloak.
-// @Tags Authentication
+// @Tags Token
 // @Accept json
 // @Produce json
-// @Success 200 {object} map[string]interface{} "JWKS containing public keys for JWT verification"
+// @Success 200 {object} JWKSResponse "JWKS containing public keys for JWT verification"
 // @Failure 500 {object} ErrorResponse "Internal server error while retrieving JWKS"
-// @Router /v1/jwks [get]
+// @Router /v1/token/jwks [get]
 func (uh *UserHandler) GetJWKS(c *gin.Context) {
 	jwks, err := uh.UserService.GetJWKS()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve JWKS."})
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"keys": jwks})
+	c.JSON(http.StatusOK, JWKSResponse{Keys: jwks})
 }

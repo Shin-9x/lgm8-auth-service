@@ -4,6 +4,14 @@ definitions:
       error:
         type: string
     type: object
+  handlers.JWKSResponse:
+    properties:
+      keys:
+        items:
+          additionalProperties: {}
+          type: object
+        type: array
+    type: object
   handlers.LoginRequest:
     properties:
       password:
@@ -86,7 +94,8 @@ definitions:
     - username
     type: object
 info:
-  contact: {}
+  title: LGM8 Auth Service
+  version: '1'
 paths:
   /v1/session/login:
     post:
@@ -149,6 +158,26 @@ paths:
       summary: Logout user
       tags:
       - auth
+  /v1/token/jwks:
+    get:
+      consumes:
+      - application/json
+      description: Fetches the public keys from Keycloak's JWKS endpoint, used to
+        verify the signatures of JWTs issued by Keycloak.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWKS containing public keys for JWT verification
+          schema:
+            $ref: '#/definitions/handlers.JWKSResponse'
+        "500":
+          description: Internal server error while retrieving JWKS
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Retrieves JWKS for token verification
+      tags:
+      - Token
   /v1/token/refresh:
     post:
       consumes:
@@ -179,7 +208,7 @@ paths:
             $ref: '#/definitions/handlers.ErrorResponse'
       summary: Refresh access token
       tags:
-      - auth
+      - Token
   /v1/users:
     post:
       consumes:

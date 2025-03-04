@@ -107,6 +107,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/token/jwks": {
+            "get": {
+                "description": "Fetches the public keys from Keycloak's JWKS endpoint, used to verify the signatures of JWTs issued by Keycloak.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Token"
+                ],
+                "summary": "Retrieves JWKS for token verification",
+                "responses": {
+                    "200": {
+                        "description": "JWKS containing public keys for JWT verification",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.JWKSResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error while retrieving JWKS",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/token/refresh": {
             "post": {
                 "description": "Generates a new access token and refresh token using a valid refresh token.",
@@ -117,7 +146,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Token"
                 ],
                 "summary": "Refresh access token",
                 "parameters": [
@@ -333,6 +362,18 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.JWKSResponse": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
                 }
             }
         },
