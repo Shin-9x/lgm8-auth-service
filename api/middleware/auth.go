@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -110,12 +111,10 @@ func Authenticate(kc *clients.KeycloakClient) gin.HandlerFunc {
 
 // parseAndValidateToken parses and validates the JWT token using JWKS
 func parseAndValidateToken(tokenString string, kc *clients.KeycloakClient) (*jwt.Token, error) {
-	var token *jwt.Token
-	var err error
-	var retryCount int
+	const maxRetries = 3
 
-	for {
-		token, err = jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+	for retry := 0; retry <= maxRetries; retry++ {
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 			return verifyKey(token, kc.JWKS)
 		})
 
@@ -124,25 +123,19 @@ func parseAndValidateToken(tokenString string, kc *clients.KeycloakClient) (*jwt
 		}
 
 		// Check if the error is due to a key not found or an invalid signature
-		// TODO: make it better
-		if err != nil && (strings.Contains(err.Error(), "key not found in JWKS") || strings.Contains(err.Error(), "signature is invalid")) {
+		if errors.Is(err, jwt.ErrSignatureInvalid) || errors.Is(err, jwt.ErrTokenUnverifiable) {
 			// Update JWKS and retry
 			if err := kc.FetchJWKS(); err != nil {
 				return nil, err
 			}
-			retryCount++
-			if retryCount > 3 {
-				return nil, err
-			}
-
-			// Apply exponential backoff
-			time.Sleep(time.Duration(retryCount) * time.Second)
+			time.Sleep(time.Duration(retry) * time.Second) // Exponential backoff
 			continue
 		}
 
-		// Other errors or invalid token
 		return nil, err
 	}
+
+	return nil, errors.New(fmt.Sprint("failed to validate token after [%d] retries.", maxRetries))
 }
 
 // verifyKey verifies the JWT token key using JWKS
