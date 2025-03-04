@@ -256,11 +256,10 @@ func (uh *UserHandler) Logout(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Internal server error while retrieving JWKS"
 // @Router /v1/token/jwks [get]
 func (uh *UserHandler) GetJWKS(c *gin.Context) {
-	jwks, err := uh.UserService.GetJWKS()
-	if err != nil {
+	jwks := uh.UserService.Kc.JWKS
+	if jwks == nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve JWKS."})
 		return
 	}
-
 	c.JSON(http.StatusOK, JWKSResponse{Keys: jwks})
 }

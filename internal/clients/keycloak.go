@@ -72,11 +72,12 @@ func (kc *KeycloakClient) FetchJWKS() error {
 		return fmt.Errorf("error fetching JWKS: [%w]", err)
 	}
 
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("failed to fetch JWKS: received status [%d]", resp.StatusCode())
+	respStatusCode := resp.StatusCode()
+	if respStatusCode != http.StatusOK {
+		return fmt.Errorf("failed to fetch JWKS: received status [%d]", respStatusCode)
 	}
 
-	var result map[string][]map[string]interface{}
+	var result map[string][]map[string]any
 	if err := json.Unmarshal(resp.Body(), &result); err != nil {
 		return fmt.Errorf("error unmarshalling JWKS response: [%w]", err)
 	}

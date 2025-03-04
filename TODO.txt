@@ -24,6 +24,6 @@
 
 - [X] Review the logic of the authentication middleware
       - Does it make sense to always call keycloak? -> No, it'll generate overhead
-      - Does it make sense to download the public key at service initialization and then use it in the middleware, without having to call keycloak?
+      - Download the public key at micro-service initialization and then use it in the middleware
             
 - [ ] Add user email verification
