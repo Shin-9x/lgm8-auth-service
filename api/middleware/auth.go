@@ -37,20 +37,9 @@ func Authenticate(kc *clients.KeycloakClient) gin.HandlerFunc {
 		}
 		tokenString := tokenParts[1]
 
-		// Parse and validate the JWT token using JWKS
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-			return verifyKey(token, kc.JWKS)
-		})
-
+		token, err := parseAndValidateToken(tokenString, kc)
 		if err != nil {
-			log.Printf("Error parsing token: [%v]", err)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
-
-		if !token.Valid {
-			log.Println("Token is not valid")
+			log.Printf("Error parsing or validating token: %v", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
@@ -116,6 +105,43 @@ func Authenticate(kc *clients.KeycloakClient) gin.HandlerFunc {
 		}
 
 		c.Next()
+	}
+}
+
+// parseAndValidateToken parses and validates the JWT token using JWKS
+func parseAndValidateToken(tokenString string, kc *clients.KeycloakClient) (*jwt.Token, error) {
+	var token *jwt.Token
+	var err error
+	var retryCount int
+
+	for {
+		token, err = jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+			return verifyKey(token, kc.JWKS)
+		})
+
+		if err == nil && token.Valid {
+			return token, nil // Valid token, exit the loop
+		}
+
+		// Check if the error is due to a key not found or an invalid signature
+		// TODO: make it better
+		if err != nil && (strings.Contains(err.Error(), "key not found in JWKS") || strings.Contains(err.Error(), "signature is invalid")) {
+			// Update JWKS and retry
+			if err := kc.FetchJWKS(); err != nil {
+				return nil, err
+			}
+			retryCount++
+			if retryCount > 3 {
+				return nil, err
+			}
+
+			// Apply exponential backoff
+			time.Sleep(time.Duration(retryCount) * time.Second)
+			continue
+		}
+
+		// Other errors or invalid token
+		return nil, err
 	}
 }
 
