@@ -1,7 +1,9 @@
 package services
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/lgm8-auth-service/internal/clients"
@@ -73,4 +75,25 @@ func (s *UserService) RefreshToken(refreshToken string) (string, string, error) 
 		return "", "", fmt.Errorf("Error during token refresh: [%w]", err)
 	}
 	return token.AccessToken, token.RefreshToken, nil
+}
+
+func (s *UserService) GetJWKS() ([]map[string]any, error) {
+	jwksURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", s.Kc.Cfg.URL, s.Kc.Cfg.Realm)
+
+	resp, err := s.Kc.Client.RestyClient().R().Get(jwksURL)
+	if err != nil {
+		return nil, fmt.Errorf("Error fetching JWKS: [%w]", err)
+	}
+
+	respStatusCode := resp.StatusCode()
+	if respStatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to fetch JWKS: received status [%d]", respStatusCode)
+	}
+
+	var result map[string][]map[string]any
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return nil, fmt.Errorf("Error unmarshalling JWKS response: [%w]", err)
+	}
+
+	return result["keys"], nil
 }

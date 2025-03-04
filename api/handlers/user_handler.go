@@ -244,3 +244,22 @@ func (uh *UserHandler) Logout(c *gin.Context) {
 
 	c.JSON(http.StatusOK, LogoutResponse{Message: "User logged out from all sessions"})
 }
+
+// GetJWKS retrieves the JSON Web Key Set (JWKS) from Keycloak.
+//
+// @Summary Retrieves JWKS for token verification
+// @Description Fetches the public keys from Keycloak's JWKS endpoint, used to verify the signatures of JWTs issued by Keycloak.
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{} "JWKS containing public keys for JWT verification"
+// @Failure 500 {object} ErrorResponse "Internal server error while retrieving JWKS"
+// @Router /v1/jwks [get]
+func (uh *UserHandler) GetJWKS(c *gin.Context) {
+	jwks, err := uh.UserService.GetJWKS()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve JWKS."})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"keys": jwks})
+}

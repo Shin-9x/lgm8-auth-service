@@ -25,6 +25,7 @@ func SetupRouter(userHandler *handlers.UserHandler) *gin.Engine {
 		api.POST("/users", userHandler.CreateUser)
 		api.POST("/session/login", userHandler.Login)
 		api.POST("/token/refresh", userHandler.RefreshToken)
+		api.GET("/token/jwks", userHandler.GetJWKS)
 
 		// Protected routes (WITH AUTH)
 		protected := api.Group("/")
