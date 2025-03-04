@@ -1,12 +1,18 @@
 package middleware
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/lgm8-auth-service/internal/clients"
 )
 
@@ -29,83 +35,143 @@ func Authenticate(kc *clients.KeycloakClient) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		token := tokenParts[1]
+		tokenString := tokenParts[1]
 
-		// Verify the token with Keycloak
-		tokenInfo, err := kc.Client.RetrospectToken(c, token, kc.Cfg.ClientID, kc.Cfg.ClientSecret, kc.Cfg.Realm)
+		// Parse and validate the JWT token using JWKS
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+			return verifyKey(token, kc.JWKS)
+		})
+
 		if err != nil {
-			log.Printf("Error introspecting token: %v", err)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			log.Printf("Error parsing token: [%v]", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
 		}
 
-		// Check tokenInfo
-		if tokenInfo == nil {
-			log.Println("Keycloak returned nil token info")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token response"})
+		if !token.Valid {
+			log.Println("Token is not valid")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
 		}
 
-		// Check if the token is active
-		if tokenInfo.Active == nil || !*tokenInfo.Active {
-			log.Println("Token is not active")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is inactive or expired"})
+		// Verify claims (exp, nbf, iat)
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			log.Println("Invalid token claims")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			c.Abort()
 			return
 		}
 
-		// Check token expiration (exp)
-		if tokenInfo.Exp == nil {
-			log.Println("Token missing expiration (exp)")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: missing expiration"})
-			c.Abort()
-			return
-		}
-		expTime := time.Unix(int64(*tokenInfo.Exp), 0)
-		if time.Now().After(expTime) {
-			log.Println("Token is expired")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is expired"})
+		// Verify exp (expiration time)
+		if exp, ok := claims["exp"].(float64); ok {
+			if time.Now().After(time.Unix(int64(exp), 0)) {
+				log.Println("Token is expired")
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is expired"})
+				c.Abort()
+				return
+			}
+		} else {
+			log.Println("Missing or invalid exp claim")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing or invalid exp claim"})
 			c.Abort()
 			return
 		}
 
-		// Check Not Before (nbf) → The token is not valid before this time
-		if tokenInfo.Nbf != nil {
-			nbfTime := time.Unix(int64(*tokenInfo.Nbf), 0)
-			if time.Now().Before(nbfTime) {
-				log.Println("Token is not valid yet (nbf check failed)")
+		// Verify nbf (not before)
+		if nbf, ok := claims["nbf"].(float64); ok {
+			if time.Now().Before(time.Unix(int64(nbf), 0)) {
+				log.Println("Token is not yet valid")
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is not yet valid"})
 				c.Abort()
 				return
 			}
 		}
 
-		// Check Issued At (iat) → Token issuance time
-		if tokenInfo.Iat == nil {
-			log.Println("Token missing issued at (iat)")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: missing issued at"})
-			c.Abort()
-			return
-		}
-		iatTime := time.Unix(int64(*tokenInfo.Iat), 0)
-		if time.Now().Before(iatTime) {
-			log.Println("Token issued in the future, possible clock skew issue")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: incorrect issued time"})
-			c.Abort()
-			return
-		}
-
-		// Check that the token is of type "Bearer"
-		if tokenInfo.Type == nil || *tokenInfo.Type != "Bearer" {
-			log.Printf("Invalid token type: expected 'Bearer', got '%s'", *tokenInfo.Type)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: incorrect type"})
+		// Verify iat (issued at)
+		if iat, ok := claims["iat"].(float64); ok {
+			if time.Now().Before(time.Unix(int64(iat), 0)) {
+				log.Println("Token issued in the future, possible clock skew issue")
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: incorrect issued time"})
+				c.Abort()
+				return
+			}
+		} else {
+			log.Println("Missing or invalid iat claim")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing or invalid iat claim"})
 			c.Abort()
 			return
 		}
 
-		// If the token is valid, continue with the request
+		// Verify that the token is of type "Bearer" (optional, if needed)
+		if typ, ok := claims["typ"].(string); ok {
+			if typ != "Bearer" {
+				log.Printf("Invalid token type: expected 'Bearer', got '%s'", typ)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: incorrect type"})
+				c.Abort()
+				return
+			}
+		}
+
 		c.Next()
 	}
+}
+
+// verifyKey verifies the JWT token key using JWKS
+func verifyKey(token *jwt.Token, jwks []map[string]any) (any, error) {
+	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+		return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+	}
+
+	// Find the corresponding key in JWKS
+	kid, ok := token.Header["kid"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing kid in token header")
+	}
+
+	for _, key := range jwks {
+		if key["kid"] == kid {
+			// Verify that x5c is an array and has at least one element
+			x5c, ok := key["x5c"].([]any)
+			if !ok || len(x5c) == 0 {
+				return nil, fmt.Errorf("invalid x5c format in JWKS")
+			}
+
+			// Verify that the first element of x5c is a string
+			x5cString, ok := x5c[0].(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid x5c value in JWKS")
+			}
+
+			// Decode the Base64 string
+			certBytes, err := base64.StdEncoding.DecodeString(x5cString)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode base64 certificate: %w", err)
+			}
+
+			// Parse the X.509 certificate
+			cert, err := x509.ParseCertificate(certBytes)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse certificate: %w", err)
+			}
+
+			// Extract the RSA public key
+			rsaPublicKey, ok := cert.PublicKey.(*rsa.PublicKey)
+			if !ok {
+				return nil, fmt.Errorf("public key is not RSA")
+			}
+
+			// Convert the public key to PEM format
+			publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+				Type:  "RSA PUBLIC KEY",
+				Bytes: x509.MarshalPKCS1PublicKey(rsaPublicKey),
+			})
+
+			return jwt.ParseRSAPublicKeyFromPEM(publicKeyPEM)
+		}
+	}
+
+	return nil, fmt.Errorf("key not found in JWKS")
 }

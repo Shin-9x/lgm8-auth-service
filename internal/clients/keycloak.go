@@ -2,8 +2,10 @@ package clients
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/lgm8-auth-service/config"
@@ -15,6 +17,7 @@ type KeycloakClient struct {
 	Cfg    *config.KeycloakConfig
 	Ctx    context.Context
 	Token  *gocloak.JWT
+	JWKS   []map[string]any
 }
 
 // NewKeycloakClient initializes the Keycloak client
@@ -31,12 +34,40 @@ func NewKeycloakClient(cfg *config.KeycloakConfig) (*KeycloakClient, error) {
 
 	log.Println("Successful connection to Keycloak!")
 
-	return &KeycloakClient{
+	kc := &KeycloakClient{
 		Client: client,
 		Cfg:    cfg,
 		Ctx:    ctx,
 		Token:  token,
-	}, nil
+	}
+
+	if err := kc.fetchJWKS(); err != nil {
+		return nil, fmt.Errorf("error fetching JWKS: %w", err)
+	}
+
+	return kc, nil
+}
+
+func (kc *KeycloakClient) fetchJWKS() error {
+	jwksURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", kc.Cfg.URL, kc.Cfg.Realm)
+
+	resp, err := kc.Client.RestyClient().R().Get(jwksURL)
+	if err != nil {
+		return fmt.Errorf("error fetching JWKS: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("failed to fetch JWKS: received status %d", resp.StatusCode())
+	}
+
+	var result map[string][]map[string]interface{}
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return fmt.Errorf("error unmarshalling JWKS response: %w", err)
+	}
+
+	kc.JWKS = result["keys"]
+	log.Println("Successful fetched JWKS!")
+	return nil
 }
 
 // RefreshToken refreshes the admin token if it expires

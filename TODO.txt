@@ -16,6 +16,14 @@
       - Obtain and install SSL/TLS certificates.
       - Update the application to use HTTPS endpoints.
 
-- [ ] Expose API to enable other microservices to download the JWT parsing key from Keycloak:
+- [X] Expose API to enable other microservices to download the JWT parsing key from Keycloak:
+      - /v1/token/jwks
+      - Require NO AUTH
       - Create an API endpoint for retrieving the JWT parsing key from Keycloak.
       - Secure the endpoint to ensure only authorized microservices can access it.
+
+- [X] Review the logic of the authentication middleware
+      - Does it make sense to always call keycloak? -> No, it'll generate overhead
+      - Does it make sense to download the public key at service initialization and then use it in the middleware, without having to call keycloak?
+            
+- [ ] Add user email verification
