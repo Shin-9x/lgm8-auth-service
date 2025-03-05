@@ -25,7 +25,10 @@ func main() {
 	}
 
 	// Handlers initialization
-	userHandler := &handlers.UserHandler{UserService: services.NewUserService(kcClient)}
+	userHandler := &handlers.UserHandler{
+		UserService: services.NewUserService(kcClient),
+		Secrets:     &cfg.Secrets,
+	}
 
 	// Router setup
 	r := routes.SetupRouter(userHandler)

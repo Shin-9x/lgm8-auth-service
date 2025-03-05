@@ -26,8 +26,13 @@ func EncryptAES(plainText, secretKeyPath string) (string, error) {
 		return "", err
 	}
 
+	// Ensure the secret key is of correct length (32 bytes for AES-256).
+	if len(secretKey) != 32 {
+		return "", fmt.Errorf("invalid secret key length: expected 32 bytes, got %d", len(secretKey))
+	}
+
 	// Create a new AES cipher using the secret key.
-	block, err := aes.NewCipher([]byte(secretKey))
+	block, err := aes.NewCipher(secretKey)
 	if err != nil {
 		return "", err
 	}
@@ -74,8 +79,13 @@ func DecryptAES(encryptedText, secretKeyPath string) (string, error) {
 		return "", err
 	}
 
+	// Ensure the secret key is of correct length (32 bytes for AES-256).
+	if len(secretKey) != 32 {
+		return "", fmt.Errorf("invalid secret key length: expected 32 bytes, got %d", len(secretKey))
+	}
+
 	// Create a new AES cipher using the secret key.
-	block, err := aes.NewCipher([]byte(secretKey))
+	block, err := aes.NewCipher(secretKey)
 	if err != nil {
 		return "", err
 	}
@@ -104,15 +114,21 @@ func DecryptAES(encryptedText, secretKeyPath string) (string, error) {
 	return string(plaintext), nil
 }
 
-func getSecretKey(path string) (string, error) {
+// getSecretKey retrieves the secret key from the specified file.
+func getSecretKey(path string) ([]byte, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("error reading secret file: %w", err)
+		return nil, fmt.Errorf("error reading secret file: %w", err)
 	}
 
 	if len(content) == 0 {
-		return "", fmt.Errorf("secret file is empty")
+		return nil, fmt.Errorf("secret file is empty")
 	}
 
-	return string(content), nil
+	// Ensure the content is exactly 32 bytes
+	if len(content) != 32 {
+		return nil, fmt.Errorf("secret key file must contain exactly 32 bytes. Actual [%d]", len(content))
+	}
+
+	return content, nil
 }

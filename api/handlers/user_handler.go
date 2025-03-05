@@ -6,11 +6,15 @@ import (
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/lgm8-auth-service/config"
 	"github.com/lgm8-auth-service/internal/services"
+	"github.com/lgm8-auth-service/security"
 )
 
 type UserHandler struct {
 	UserService *services.UserService
+	Secrets     *config.SecretsConfig
 }
 
 // CreateUser registers a new user in the system.
@@ -33,6 +37,13 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	verificationToken := req.Username + ":" + uuid.New().String()
+	encryptedToken, err := security.EncryptAES(verificationToken, uh.Secrets.UserVerificationKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
 	user := gocloak.User{
 		Username:      gocloak.StringP(req.Username),
 		Email:         gocloak.StringP(req.Email),
@@ -45,6 +56,10 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 				Temporary: gocloak.BoolP(false),
 			},
 		},
+		Attributes: &map[string][]string{
+			"email_verified_custom":    {"false"},
+			"email_verification_token": {encryptedToken},
+		},
 	}
 
 	userID, err := uh.UserService.CreateUser(user)
@@ -54,6 +69,9 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	log.Printf("User created with ID: [%s]", userID)
+
+	// TODO: Send kafka notification to notifier microservice
+
 	c.JSON(http.StatusCreated, UserCreatedResponse{
 		Message: "User Created",
 		UserID:  userID,
