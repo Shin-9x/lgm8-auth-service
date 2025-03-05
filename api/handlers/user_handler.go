@@ -3,6 +3,8 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/gin-gonic/gin"
@@ -37,13 +39,7 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	verificationToken := req.Username + ":" + uuid.New().String()
-	encryptedToken, err := security.EncryptAES(verificationToken, uh.Secrets.UserVerificationKey)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-		return
-	}
-
+	// User creation
 	user := gocloak.User{
 		Username:      gocloak.StringP(req.Username),
 		Email:         gocloak.StringP(req.Email),
@@ -56,10 +52,6 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 				Temporary: gocloak.BoolP(false),
 			},
 		},
-		Attributes: &map[string][]string{
-			"email_verified_custom":    {"false"},
-			"email_verification_token": {encryptedToken},
-		},
 	}
 
 	userID, err := uh.UserService.CreateUser(user)
@@ -70,12 +62,86 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 
 	log.Printf("User created with ID: [%s]", userID)
 
-	// TODO: Send kafka notification to notifier microservice
+	// User verification token creation
+	verificationToken := userID + ":" + uuid.New().String()
+	encryptedToken, err := security.EncryptAES(verificationToken, uh.Secrets.UserVerificationKey)
+	if err != nil {
+		_ = uh.UserService.DeleteUser(userID) // Delete user if something fail
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	// Updating user attributes with verification token
+	err = uh.UserService.UpdateUserAttributes(userID, map[string][]string{
+		"email_verified_custom":    {"false"},
+		"email_verification_token": {encryptedToken},
+	})
+	if err != nil {
+		_ = uh.UserService.DeleteUser(userID) // Delete user if something fail
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	// TODO: Send Kafka notification to notifier microservice
 
 	c.JSON(http.StatusCreated, UserCreatedResponse{
 		Message: "User Created",
 		UserID:  userID,
 	})
+}
+
+func (uh *UserHandler) VerifyUser(c *gin.Context) {
+	token, err := url.QueryUnescape(c.Query("token"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if token == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Token missing"})
+		return
+	}
+	token = strings.ReplaceAll(token, " ", "+") // Restores the + that have been transformed into spaces
+
+	decrypted, err := security.DecryptAES(token, uh.Secrets.UserVerificationKey)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
+		return
+	}
+	log.Printf("decrypted token -> [%s]", decrypted)
+
+	// Extract UserID from decrypted token
+	parts := strings.Split(decrypted, ":")
+	if len(parts) != 2 {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Malformed Token"})
+		return
+	}
+	userID := parts[0]
+	log.Printf("UserID part -> [%s]", userID)
+
+	// Get the user from Keycloak
+	user, err := uh.UserService.GetUser(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	// Check if the saved token is equal to the decrypted token
+	if user.Attributes == nil || (*user.Attributes)["email_verification_token"][0] != token {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token."})
+		return
+	}
+
+	// Update email verification attributes
+	(*user.Attributes)["email_verified_custom"] = []string{"true"}
+	delete((*user.Attributes), "email_verification_token")
+
+	err = uh.UserService.UpdateUser(*user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Errore nell'aggiornamento utente"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User verification successful!"})
 }
 
 // DeleteUser removes a user by ID.

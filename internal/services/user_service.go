@@ -47,6 +47,29 @@ func (s *UserService) UpdateUserPassword(userID string, credential gocloak.Crede
 	return nil
 }
 
+func (s *UserService) UpdateUser(user gocloak.User) error {
+	err := s.Kc.Client.UpdateUser(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, user)
+	if err != nil {
+		return fmt.Errorf("error updating user: [%w]", err)
+	}
+	return nil
+}
+
+func (s *UserService) UpdateUserAttributes(userID string, attributes map[string][]string) error {
+	user, err := s.GetUser(userID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch user before update: [%w]", err)
+	}
+
+	user.Attributes = &attributes
+
+	err = s.Kc.Client.UpdateUser(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, *user)
+	if err != nil {
+		return fmt.Errorf("error updating user attributes: [%w]", err)
+	}
+	return nil
+}
+
 func (s *UserService) Login(username, password string) (string, string, error) {
 	token, err := s.Kc.Client.Login(
 		s.Kc.Ctx, s.Kc.Cfg.ClientID, s.Kc.Cfg.ClientSecret, s.Kc.Cfg.Realm, username, password,
