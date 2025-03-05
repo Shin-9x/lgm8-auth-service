@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Server   ServerConfig
 	Keycloak KeycloakConfig
+	Secrets  SecretsConfig
 }
 
 // It represents the property port for the API server
@@ -26,6 +27,11 @@ type KeycloakConfig struct {
 	ClientSecret  string `mapstructure:"client_secret"`
 	AdminUser     string `mapstructure:"admin_user"`
 	AdminPassword string `mapstructure:"admin_password"`
+}
+
+// It represents secrets configuration
+type SecretsConfig struct {
+	UserVerificationKey string `mapstructure:"user_ver_scrt_key"`
 }
 
 // It loads configuration from files and environment variables
