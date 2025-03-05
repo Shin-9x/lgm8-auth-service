@@ -10,13 +10,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/lgm8-auth-service/config"
+	"github.com/lgm8-auth-service/internal/clients"
 	"github.com/lgm8-auth-service/internal/services"
 	"github.com/lgm8-auth-service/security"
 )
 
 type UserHandler struct {
-	UserService *services.UserService
-	Secrets     *config.SecretsConfig
+	UserService    *services.UserService
+	Secrets        *config.SecretsConfig
+	EventPublisher *clients.RMQPublisher
 }
 
 // CreateUser registers a new user in the system.
@@ -82,7 +84,12 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// TODO: Send Kafka notification to notifier microservice
+	// Send RabbitMQ notification to notifier microservice
+	uh.EventPublisher.Publish(map[string]any{
+		"email":    req.Email,
+		"username": req.Username,
+		"token":    encryptedToken,
+	})
 
 	c.JSON(http.StatusCreated, UserCreatedResponse{
 		Message: "User Created",

@@ -12,6 +12,7 @@ type Config struct {
 	Server   ServerConfig
 	Keycloak KeycloakConfig
 	Secrets  SecretsConfig
+	RabbitMQ RabbitMQConfig
 }
 
 // It represents the property port for the API server
@@ -27,6 +28,11 @@ type KeycloakConfig struct {
 	ClientSecret  string `mapstructure:"client_secret"`
 	AdminUser     string `mapstructure:"admin_user"`
 	AdminPassword string `mapstructure:"admin_password"`
+}
+
+// It represent RabbitMQ configuration
+type RabbitMQConfig struct {
+	URL string `mapstructure:"url"`
 }
 
 // It represents secrets configuration

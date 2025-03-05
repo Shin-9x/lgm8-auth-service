@@ -9,5 +9,8 @@ keycloak:
   admin_user: "admin"
   admin_password: "admin"
 
+rabbitmq:
+  url: "amqp://admin:admin@rabbitmq:5672/"
+
 secrets:
   user_ver_scrt_key: "../../infrastructure/secrets/user_verification_secret"
