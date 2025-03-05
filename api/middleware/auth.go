@@ -135,7 +135,7 @@ func parseAndValidateToken(tokenString string, kc *clients.KeycloakClient) (*jwt
 		return nil, err
 	}
 
-	return nil, errors.New(fmt.Sprint("failed to validate token after [%d] retries.", maxRetries))
+	return nil, fmt.Errorf("failed to validate token after [%d] retries", maxRetries)
 }
 
 // verifyKey verifies the JWT token key using JWKS

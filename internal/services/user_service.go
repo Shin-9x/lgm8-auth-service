@@ -18,7 +18,7 @@ func NewUserService(kc *clients.KeycloakClient) *UserService {
 func (s *UserService) CreateUser(user gocloak.User) (string, error) {
 	userID, err := s.Kc.Client.CreateUser(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, user)
 	if err != nil {
-		return "", fmt.Errorf("Error during user creation: [%w]", err)
+		return "", fmt.Errorf("error during user creation: [%w]", err)
 	}
 	return userID, nil
 }
@@ -26,7 +26,7 @@ func (s *UserService) CreateUser(user gocloak.User) (string, error) {
 func (s *UserService) DeleteUser(userID string) error {
 	err := s.Kc.Client.DeleteUser(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, userID)
 	if err != nil {
-		return fmt.Errorf("Error during user deletion: [%w]", err)
+		return fmt.Errorf("error during user deletion: [%w]", err)
 	}
 	return nil
 }
@@ -34,7 +34,7 @@ func (s *UserService) DeleteUser(userID string) error {
 func (s *UserService) GetUser(userID string) (*gocloak.User, error) {
 	user, err := s.Kc.Client.GetUserByID(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, userID)
 	if err != nil {
-		return nil, fmt.Errorf("Error during user retrieving: [%w]", err)
+		return nil, fmt.Errorf("error during user retrieving: [%w]", err)
 	}
 	return user, nil
 }
@@ -52,7 +52,7 @@ func (s *UserService) Login(username, password string) (string, string, error) {
 		s.Kc.Ctx, s.Kc.Cfg.ClientID, s.Kc.Cfg.ClientSecret, s.Kc.Cfg.Realm, username, password,
 	)
 	if err != nil {
-		return "", "", fmt.Errorf("Error during login: [%w]", err)
+		return "", "", fmt.Errorf("error during login: [%w]", err)
 	}
 	return token.AccessToken, token.RefreshToken, nil
 }
@@ -60,7 +60,7 @@ func (s *UserService) Login(username, password string) (string, string, error) {
 func (s *UserService) Logout(userID string) error {
 	err := s.Kc.Client.LogoutAllSessions(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, userID)
 	if err != nil {
-		return fmt.Errorf("Error during logout: [%w]", err)
+		return fmt.Errorf("error during logout: [%w]", err)
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func (s *UserService) RefreshToken(refreshToken string) (string, string, error) 
 		s.Kc.Ctx, refreshToken, s.Kc.Cfg.ClientID, s.Kc.Cfg.ClientSecret, s.Kc.Cfg.Realm,
 	)
 	if err != nil {
-		return "", "", fmt.Errorf("Error during token refresh: [%w]", err)
+		return "", "", fmt.Errorf("error during token refresh: [%w]", err)
 	}
 	return token.AccessToken, token.RefreshToken, nil
 }
