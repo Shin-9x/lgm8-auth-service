@@ -274,11 +274,22 @@ func (uh *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
+	var verified string
+
+	if user.Attributes != nil {
+		verifiedAttr, exists := (*user.Attributes)[EMAIL_VERIFIED_CUSTOM_LABEL]
+		if exists && len(verifiedAttr) > 0 {
+			verified = verifiedAttr[0]
+		}
+	}
+
 	response := UserGetResponse{
-		ID:    *user.ID,
-		First: *user.FirstName,
-		Last:  *user.LastName,
-		Email: *user.Email,
+		ID:       *user.ID,
+		Username: *user.Username,
+		First:    *user.FirstName,
+		Last:     *user.LastName,
+		Email:    *user.Email,
+		Verified: verified,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -343,13 +354,14 @@ func (uh *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := uh.UserService.Login(creds.Username, creds.Password)
+	accessToken, refreshToken, userID, err := uh.UserService.Login(creds.Username, creds.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid credentials"})
 		return
 	}
 
 	c.JSON(http.StatusOK, LoginResponse{
+		UserID:       userID,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	})

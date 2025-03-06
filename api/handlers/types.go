@@ -15,10 +15,12 @@ type ErrorResponse struct {
 }
 
 type UserGetResponse struct {
-	ID    string `json:"id"`
-	First string `json:"first_name"`
-	Last  string `json:"last_name"`
-	Email string `json:"email"`
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	First    string `json:"first_name"`
+	Last     string `json:"last_name"`
+	Email    string `json:"email"`
+	Verified string `json:"verified"`
 }
 
 type UserCreatedResponse struct {
@@ -40,6 +42,7 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
+	UserID       string `json:"user_id"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }

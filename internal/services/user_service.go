@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/golang-jwt/jwt"
 	"github.com/lgm8-auth-service/internal/clients"
 )
 
@@ -70,14 +71,31 @@ func (s *UserService) UpdateUserAttributes(userID string, attributes map[string]
 	return nil
 }
 
-func (s *UserService) Login(username, password string) (string, string, error) {
+func (s *UserService) Login(username, password string) (string, string, string, error) {
 	token, err := s.Kc.Client.Login(
 		s.Kc.Ctx, s.Kc.Cfg.ClientID, s.Kc.Cfg.ClientSecret, s.Kc.Cfg.Realm, username, password,
 	)
 	if err != nil {
-		return "", "", fmt.Errorf("error during login: [%w]", err)
+		return "", "", "", fmt.Errorf("error during login: [%w]", err)
 	}
-	return token.AccessToken, token.RefreshToken, nil
+
+	// Extract user ID from JWT token
+	parsedToken, _, err := new(jwt.Parser).ParseUnverified(token.AccessToken, jwt.MapClaims{})
+	if err != nil {
+		return "", "", "", fmt.Errorf("error parsing access token: [%w]", err)
+	}
+
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", "", "", fmt.Errorf("invalid token claims")
+	}
+
+	userID, ok := claims["sub"].(string)
+	if !ok {
+		return "", "", "", fmt.Errorf("user ID not found in token")
+	}
+
+	return token.AccessToken, token.RefreshToken, userID, nil
 }
 
 func (s *UserService) Logout(userID string) error {
