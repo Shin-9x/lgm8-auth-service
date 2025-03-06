@@ -23,7 +23,8 @@ func SetupRouter(userHandler *handlers.UserHandler) *gin.Engine {
 	{
 		// Public routes (NO AUTH)
 		api.POST("/users", userHandler.CreateUser)
-		api.GET("/users/verification", userHandler.VerifyUser)
+		api.GET("/users/verify", userHandler.VerifyUser)
+		api.POST("/users/:id/resend-verification", userHandler.SendVerificationNotify)
 		api.POST("/session/login", userHandler.Login)
 		api.POST("/token/refresh", userHandler.RefreshToken)
 		api.GET("/token/jwks", userHandler.GetJWKS)

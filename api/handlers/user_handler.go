@@ -15,6 +15,9 @@ import (
 	"github.com/lgm8-auth-service/security"
 )
 
+const EMAIL_VERIFICATION_TOKEN_LABEL = "email_verification_token"
+const EMAIL_VERIFIED_CUSTOM_LABEL = "email_verified_custom"
+
 type UserHandler struct {
 	UserService    *services.UserService
 	Secrets        *config.SecretsConfig
@@ -75,8 +78,8 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 
 	// Updating user attributes with verification token
 	err = uh.UserService.UpdateUserAttributes(userID, map[string][]string{
-		"email_verified_custom":    {"false"},
-		"email_verification_token": {encryptedToken},
+		EMAIL_VERIFIED_CUSTOM_LABEL:    {"false"},
+		EMAIL_VERIFICATION_TOKEN_LABEL: {encryptedToken},
 	})
 	if err != nil {
 		_ = uh.UserService.DeleteUser(userID) // Delete user if something fail
@@ -97,6 +100,20 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 	})
 }
 
+// VerifyUser verifies the user's email using a verification token.
+//
+// @Summary Verify user email
+// @Description This endpoint verifies a user's email by decrypting the provided verification token
+// and updating the user's status in Keycloak.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param token query string true "Encrypted verification token"
+// @Success 200 {object} map[string]string "User verification successful!"
+// @Failure 400 {object} ErrorResponse "Bad request (e.g., missing or invalid token)"
+// @Failure 401 {object} ErrorResponse "Unauthorized (e.g., token decryption failed, malformed token)"
+// @Failure 500 {object} ErrorResponse "Internal server error (e.g., Keycloak user retrieval or update failure)"
+// @Router /users/verify [get]
 func (uh *UserHandler) VerifyUser(c *gin.Context) {
 	token, err := url.QueryUnescape(c.Query("token"))
 	if err != nil {
@@ -133,22 +150,85 @@ func (uh *UserHandler) VerifyUser(c *gin.Context) {
 	}
 
 	// Check if the saved token is equal to the decrypted token
-	if user.Attributes == nil || (*user.Attributes)["email_verification_token"][0] != token {
+	if user.Attributes == nil || (*user.Attributes)[EMAIL_VERIFICATION_TOKEN_LABEL][0] != token {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "Invalid token."})
 		return
 	}
 
 	// Update email verification attributes
-	(*user.Attributes)["email_verified_custom"] = []string{"true"}
-	delete((*user.Attributes), "email_verification_token")
+	(*user.Attributes)[EMAIL_VERIFIED_CUSTOM_LABEL] = []string{"true"}
+	delete((*user.Attributes), EMAIL_VERIFICATION_TOKEN_LABEL)
 
 	err = uh.UserService.UpdateUser(*user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Errore nell'aggiornamento utente"})
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "User update error"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "User verification successful!"})
+}
+
+// SendVerificationNotify resends the email verification notification to a user.
+//
+// @Summary Resend user verification email
+// @Description This endpoint retrieves a user from Keycloak, verifies that the user still requires email validation,
+// and resends the verification email using RabbitMQ.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} map[string]string "Notification sent successfully!"
+// @Failure 400 {object} ErrorResponse "Bad request (e.g., missing attributes or verification token)"
+// @Failure 409 {object} ErrorResponse "Conflict (e.g., user does not need verification)"
+// @Failure 500 {object} ErrorResponse "Internal server error (e.g., failed to retrieve user or send notification)"
+// @Router /users/{id}/resend-verification [post]
+func (uh *UserHandler) SendVerificationNotify(c *gin.Context) {
+	userID := c.Param("id")
+
+	// Get the user from Keycloak
+	user, err := uh.UserService.GetUser(userID)
+	if err != nil {
+		log.Printf("Error retrieving user [%s]: [%v]", userID, err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve user"})
+		return
+	}
+
+	// Check if user has attributes
+	if user.Attributes == nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "User does not have custom attributes"})
+		return
+	}
+
+	// Extract and validate email_verified_custom
+	verifiedAttr, exists := (*user.Attributes)[EMAIL_VERIFIED_CUSTOM_LABEL]
+	if !exists || len(verifiedAttr) == 0 || verifiedAttr[0] != "false" {
+		c.JSON(http.StatusConflict, ErrorResponse{Error: "User does not need validation"})
+		return
+	}
+
+	// Extract and validate email_verification_token
+	tokenAttr, exists := (*user.Attributes)[EMAIL_VERIFICATION_TOKEN_LABEL]
+	if !exists || len(tokenAttr) == 0 || tokenAttr[0] == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Verification token does not exist"})
+		return
+	}
+
+	token := tokenAttr[0]
+
+	// Send RabbitMQ notification to notifier microservice
+	err = uh.EventPublisher.Publish(map[string]any{
+		"email":    *user.Email,
+		"username": *user.Username,
+		"token":    token,
+	})
+	if err != nil {
+		log.Printf("Error publishing event for user [%s]: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to send notification"})
+		return
+	}
+
+	log.Printf("Verification email resent for user [%s]", userID)
+	c.JSON(http.StatusOK, gin.H{"message": "Notification sent successfully!"})
 }
 
 // DeleteUser removes a user by ID.

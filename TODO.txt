@@ -26,4 +26,6 @@
       - Does it make sense to always call keycloak? -> No, it'll generate overhead
       - Download the public key at micro-service initialization and then use it in the middleware
             
-- [ ] Add user email verification
+- [X] Add user email verification
+      - It uses RabbitMQ to communicate to another microservice that'll send the verification email
+      - Expose an API to verify the token provided during the registration
