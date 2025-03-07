@@ -8,6 +8,7 @@ keycloak:
   client_secret: "test"
   admin_user: "admin"
   admin_password: "admin"
+  admin_token_lifetime: 300
 
 rabbitmq:
   url: "amqp://admin:admin@rabbitmq:5672/"

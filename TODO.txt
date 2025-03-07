@@ -1,7 +1,3 @@
-- [X] Add environment-dependent configuration:
-      - Implement different configurations for development, testing, and production environments.
-      - Ensure the application loads the correct configuration based on the environment.
-
 - [ ] Add encryption/decryption for sensitive data:
       - Implement encryption for storing sensitive data in the database.
       - BE -> Secret Key
@@ -16,6 +12,12 @@
       - Obtain and install SSL/TLS certificates.
       - Update the application to use HTTPS endpoints.
 
+
+****************************************** DONE ******************************************
+- [X] Add environment-dependent configuration:
+      - Implement different configurations for development, testing, and production environments.
+      - Ensure the application loads the correct configuration based on the environment.
+
 - [X] Expose API to enable other microservices to download the JWT parsing key from Keycloak:
       - /v1/token/jwks
       - Require NO AUTH
@@ -29,3 +31,5 @@
 - [X] Add user email verification
       - It uses RabbitMQ to communicate to another microservice that'll send the verification email
       - Expose an API to verify the token provided during the registration
+
+- [X] Make Admin token to autorefresh

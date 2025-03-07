@@ -22,12 +22,13 @@ type ServerConfig struct {
 
 // It represents keycloak configuration
 type KeycloakConfig struct {
-	URL           string `mapstructure:"url"`
-	Realm         string `mapstructure:"realm"`
-	ClientID      string `mapstructure:"client_id"`
-	ClientSecret  string `mapstructure:"client_secret"`
-	AdminUser     string `mapstructure:"admin_user"`
-	AdminPassword string `mapstructure:"admin_password"`
+	URL                string `mapstructure:"url"`
+	Realm              string `mapstructure:"realm"`
+	ClientID           string `mapstructure:"client_id"`
+	ClientSecret       string `mapstructure:"client_secret"`
+	AdminUser          string `mapstructure:"admin_user"`
+	AdminPassword      string `mapstructure:"admin_password"`
+	AdminTokenLifetime int    `mapstructure:"admin_token_lifetime"`
 }
 
 // It represent RabbitMQ configuration
