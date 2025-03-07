@@ -17,11 +17,12 @@ import (
 
 const EMAIL_VERIFICATION_TOKEN_LABEL = "email_verification_token"
 const EMAIL_VERIFIED_CUSTOM_LABEL = "email_verified_custom"
+const USER_VERIFICATION_EMAIL_RMQ = "user-verification-email"
 
 type UserHandler struct {
-	UserService    *services.UserService
-	Secrets        *config.SecretsConfig
-	EventPublisher *clients.RMQPublisher
+	UserService *services.UserService
+	Secrets     *config.SecretsConfig
+	RMQClient   *clients.RabbitMQClient
 }
 
 // CreateUser registers a new user in the system.
@@ -88,11 +89,14 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	// Send RabbitMQ notification to notifier microservice
-	uh.EventPublisher.Publish(map[string]any{
-		"email":    req.Email,
-		"username": req.Username,
-		"token":    encryptedToken,
-	})
+	uh.RMQClient.PublishMessage(
+		USER_VERIFICATION_EMAIL_RMQ,
+		map[string]any{
+			"email":    req.Email,
+			"username": req.Username,
+			"token":    encryptedToken,
+		},
+	)
 
 	c.JSON(http.StatusCreated, UserCreatedResponse{
 		Message: "User Created",
@@ -216,11 +220,14 @@ func (uh *UserHandler) SendVerificationNotify(c *gin.Context) {
 	token := tokenAttr[0]
 
 	// Send RabbitMQ notification to notifier microservice
-	err = uh.EventPublisher.Publish(map[string]any{
-		"email":    *user.Email,
-		"username": *user.Username,
-		"token":    token,
-	})
+	err = uh.RMQClient.PublishMessage(
+		USER_VERIFICATION_EMAIL_RMQ,
+		map[string]any{
+			"email":    *user.Email,
+			"username": *user.Username,
+			"token":    token,
+		},
+	)
 	if err != nil {
 		log.Printf("Error publishing event for user [%s]: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to send notification"})

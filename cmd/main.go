@@ -18,12 +18,12 @@ func main() {
 		log.Fatalf("Error loading configuration: [%s]", err)
 	}
 
-	// RabbitMQ publisher initialization
-	publisher, err := clients.NewPublisher(&cfg.RabbitMQ)
+	// RabbitMQ client initialization
+	rmqClient, err := clients.NewRabbitMQClient(&cfg.RabbitMQ)
 	if err != nil {
-		log.Fatalf("Error initializing RabbitMQ Publisher: [%s]", err)
+		log.Fatalf("Error initializing RabbitMQ Client: [%s]", err)
 	}
-	defer publisher.Close()
+	defer rmqClient.Close()
 
 	// Keycloak client initialization
 	kcClient, err := clients.NewKeycloakClient(&cfg.Keycloak)
@@ -33,9 +33,9 @@ func main() {
 
 	// Handlers initialization
 	userHandler := &handlers.UserHandler{
-		UserService:    services.NewUserService(kcClient),
-		Secrets:        &cfg.Secrets,
-		EventPublisher: publisher,
+		UserService: services.NewUserService(kcClient),
+		Secrets:     &cfg.Secrets,
+		RMQClient:   rmqClient,
 	}
 
 	// Router setup
