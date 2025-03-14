@@ -3,6 +3,8 @@ package services
 import (
 	"fmt"
 
+	"maps"
+
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/golang-jwt/jwt"
 	"github.com/lgm8-auth-service/internal/clients"
@@ -62,7 +64,12 @@ func (s *UserService) UpdateUserAttributes(userID string, attributes map[string]
 		return fmt.Errorf("failed to fetch user before update: [%w]", err)
 	}
 
-	user.Attributes = &attributes
+	// If the user already has attributes, we keep them and update only the specified ones
+	if user.Attributes == nil {
+		user.Attributes = &attributes
+	} else {
+		maps.Copy((*user.Attributes), attributes)
+	}
 
 	err = s.Kc.Client.UpdateUser(s.Kc.Ctx, s.Kc.Token.AccessToken, s.Kc.Cfg.Realm, *user)
 	if err != nil {

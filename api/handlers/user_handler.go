@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/gin-gonic/gin"
@@ -18,6 +20,9 @@ import (
 const EMAIL_VERIFICATION_TOKEN_LABEL = "email_verification_token"
 const EMAIL_VERIFIED_CUSTOM_LABEL = "email_verified_custom"
 const USER_VERIFICATION_EMAIL_RMQ = "user-verification-email"
+const DATE_OF_BIRTH_LABEL = "date_of_birth"
+const HEIGHT_LABEL = "height"
+const WEIGHT_LABEL = "weight"
 
 type UserHandler struct {
 	UserService *services.UserService
@@ -45,10 +50,18 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	// Date of birth parsing (format dd/MM/yyyy)
+	dateOfBirth, err := time.Parse("02/01/2006", req.DateOfBirth)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid date format, expected dd/MM/yyyy"})
+	}
+
 	// User creation
 	user := gocloak.User{
 		Username:      gocloak.StringP(req.Username),
 		Email:         gocloak.StringP(req.Email),
+		FirstName:     gocloak.StringP(req.FirstName),
+		LastName:      gocloak.StringP(req.LastName),
 		Enabled:       gocloak.BoolP(true),
 		EmailVerified: gocloak.BoolP(false),
 		Credentials: &[]gocloak.CredentialRepresentation{
@@ -57,6 +70,11 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 				Value:     gocloak.StringP(req.Password),
 				Temporary: gocloak.BoolP(false),
 			},
+		},
+		Attributes: &map[string][]string{
+			DATE_OF_BIRTH_LABEL: {dateOfBirth.Format("2006-01-02")},
+			HEIGHT_LABEL:        {strconv.Itoa(req.Height)},
+			WEIGHT_LABEL:        {strconv.FormatFloat(req.Weight, 'f', -1, 64)},
 		},
 	}
 
@@ -282,21 +300,49 @@ func (uh *UserHandler) GetUser(c *gin.Context) {
 	}
 
 	var verified string
+	var birthDate string
+	var weight float64
+	var height float64
 
 	if user.Attributes != nil {
-		verifiedAttr, exists := (*user.Attributes)[EMAIL_VERIFIED_CUSTOM_LABEL]
-		if exists && len(verifiedAttr) > 0 {
+		// Extract email verification status
+		if verifiedAttr, exists := (*user.Attributes)[EMAIL_VERIFIED_CUSTOM_LABEL]; exists && len(verifiedAttr) > 0 {
 			verified = verifiedAttr[0]
+		}
+
+		// Extract weight (kg)
+		if weightAttr, exists := (*user.Attributes)[WEIGHT_LABEL]; exists && len(weightAttr) > 0 {
+			if w, err := strconv.ParseFloat(weightAttr[0], 64); err == nil {
+				weight = w
+			}
+		}
+
+		// Extract height (cm)
+		if heightAttr, exists := (*user.Attributes)[HEIGHT_LABEL]; exists && len(heightAttr) > 0 {
+			if h, err := strconv.ParseFloat(heightAttr[0], 64); err == nil {
+				height = h
+			}
+		}
+
+		// Extract and format birth date
+		if birthDateAttr, exists := (*user.Attributes)[DATE_OF_BIRTH_LABEL]; exists && len(birthDateAttr) > 0 {
+			parsedDate, err := time.Parse("2006-01-02", birthDateAttr[0])
+			if err == nil {
+				birthDate = parsedDate.Format("02/01/2006") // Convert to dd/MM/yyyy
+			}
 		}
 	}
 
 	response := UserGetResponse{
-		ID:       *user.ID,
-		Username: *user.Username,
-		First:    *user.FirstName,
-		Last:     *user.LastName,
-		Email:    *user.Email,
-		Verified: verified,
+		ID:        *user.ID,
+		Username:  *user.Username,
+		First:     *user.FirstName,
+		Last:      *user.LastName,
+		Email:     *user.Email,
+		Verified:  verified,
+		Weight:    weight,
+		Height:    height,
+		BirthDate: birthDate,
 	}
 
 	c.JSON(http.StatusOK, response)

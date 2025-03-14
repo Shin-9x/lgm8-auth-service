@@ -1,9 +1,14 @@
 package handlers
 
 type UserPostRequest struct {
-	Username string `json:"username" binding:"required,min=3,max=50"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
+	Username    string  `json:"username" binding:"required,min=3,max=50"`
+	Email       string  `json:"email" binding:"required,email"`
+	Password    string  `json:"password" binding:"required,min=8"`
+	FirstName   string  `json:"first_name" binding:"required,min=2,max=50"`
+	LastName    string  `json:"last_name" binding:"required,min=2,max=50"`
+	DateOfBirth string  `json:"date_of_birth" binding:"required"`         // Format dd/MM/yyyy
+	Height      int     `json:"height" binding:"required,min=50,max=250"` // cm
+	Weight      float64 `json:"weight" binding:"required,min=20,max=500"` // kg
 }
 
 type PasswordUpdateRequest struct {
@@ -15,12 +20,15 @@ type ErrorResponse struct {
 }
 
 type UserGetResponse struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	First    string `json:"first_name"`
-	Last     string `json:"last_name"`
-	Email    string `json:"email"`
-	Verified string `json:"verified"`
+	ID        string  `json:"id"`
+	Username  string  `json:"username"`
+	First     string  `json:"first_name"`
+	Last      string  `json:"last_name"`
+	Email     string  `json:"email"`
+	Verified  string  `json:"verified"`
+	Weight    float64 `json:"weight,omitempty"`     // Weight in kg (optional)
+	Height    float64 `json:"height,omitempty"`     // Height in cm (optional)
+	BirthDate string  `json:"birth_date,omitempty"` // Birthdate in dd/MM/yyyy (optional)
 }
 
 type UserCreatedResponse struct {
