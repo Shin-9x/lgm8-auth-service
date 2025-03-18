@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Shin-9x/lgm8-auth-service.git'
+                git branch: 'main', url: 'https://github.com/Shin-9x/lgm8.git'
             }
         }
 
@@ -24,8 +24,15 @@ pipeline {
 
         stage('Build & Push Docker Image') {
             steps {
-                sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -f Dockerfile .'
-                sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
+                script {
+                    // Navigate to the microservices/lgm8-auth-service directory for the build
+                    dir('microservices/lgm8-auth-service') {
+                        // Build the Docker image
+                        sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -f Dockerfile .'
+                        // Push the image to Docker Hub
+                        sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
+                    }
+                }
             }
         }
 
