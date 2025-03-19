@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,8 +20,6 @@ const EMAIL_VERIFICATION_TOKEN_LABEL = "email_verification_token"
 const EMAIL_VERIFIED_CUSTOM_LABEL = "email_verified_custom"
 const USER_VERIFICATION_EMAIL_RMQ = "user-verification-email"
 const DATE_OF_BIRTH_LABEL = "date_of_birth"
-const HEIGHT_LABEL = "height"
-const WEIGHT_LABEL = "weight"
 
 type UserHandler struct {
 	UserService *services.UserService
@@ -73,8 +70,6 @@ func (uh *UserHandler) CreateUser(c *gin.Context) {
 		},
 		Attributes: &map[string][]string{
 			DATE_OF_BIRTH_LABEL: {dateOfBirth.Format("2006-01-02")},
-			HEIGHT_LABEL:        {strconv.Itoa(req.Height)},
-			WEIGHT_LABEL:        {strconv.FormatFloat(req.Weight, 'f', -1, 64)},
 		},
 	}
 
@@ -301,27 +296,11 @@ func (uh *UserHandler) GetUser(c *gin.Context) {
 
 	var verified string
 	var birthDate string
-	var weight float64
-	var height float64
 
 	if user.Attributes != nil {
 		// Extract email verification status
 		if verifiedAttr, exists := (*user.Attributes)[EMAIL_VERIFIED_CUSTOM_LABEL]; exists && len(verifiedAttr) > 0 {
 			verified = verifiedAttr[0]
-		}
-
-		// Extract weight (kg)
-		if weightAttr, exists := (*user.Attributes)[WEIGHT_LABEL]; exists && len(weightAttr) > 0 {
-			if w, err := strconv.ParseFloat(weightAttr[0], 64); err == nil {
-				weight = w
-			}
-		}
-
-		// Extract height (cm)
-		if heightAttr, exists := (*user.Attributes)[HEIGHT_LABEL]; exists && len(heightAttr) > 0 {
-			if h, err := strconv.ParseFloat(heightAttr[0], 64); err == nil {
-				height = h
-			}
 		}
 
 		// Extract and format birth date
@@ -340,8 +319,6 @@ func (uh *UserHandler) GetUser(c *gin.Context) {
 		Last:      *user.LastName,
 		Email:     *user.Email,
 		Verified:  verified,
-		Weight:    weight,
-		Height:    height,
 		BirthDate: birthDate,
 	}
 
